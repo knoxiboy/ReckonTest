@@ -7,6 +7,27 @@ const app = express();
 
 const SECRET = process.env.WEBHOOK_SECRET || "mysecretkey";
 
+// ✅ Fix 0: Basic IP rate-Limiter to throttle DDoS attempts on the webhook URL
+const rateLimitMap = new Map();
+app.use((req, res, next) => {
+  const ip = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  if (!rateLimitMap.has(ip)) {
+    rateLimitMap.set(ip, { count: 1, startTime: now });
+    return next();
+  }
+  const record = rateLimitMap.get(ip);
+  if (now - record.startTime > 300000) { // 5 minutes window
+    rateLimitMap.set(ip, { count: 1, startTime: now });
+    return next();
+  }
+  if (record.count >= 200) {
+    return res.status(429).send("Too Many Requests");
+  }
+  record.count++;
+  next();
+});
+
 // ✅ Fix 8: Centralized logging (replace with DB write in production)
 function logEvent(entry) {
   console.log("[webhook log]", entry);

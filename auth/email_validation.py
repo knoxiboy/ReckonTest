@@ -1,1 +1,1 @@
-# Email validation logic stub
+def validate_email(email): return "@" in email
